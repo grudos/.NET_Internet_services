@@ -1,0 +1,43 @@
+﻿@using BlazorServerDbContextExample.Grid
+@using BlazorServerSportsAgents.Pages
+@using SportsAgentsService
+@inject IAthleteFilters Filters
+
+@if (CurrentAthlete is not null)
+{
+    <div class="row athlete-detail">
+        <div class="col-2">
+            <a href="@ViewLink" alt="View Details"
+               title="View Details">
+                @Name
+            </a>
+        </div>
+        <div class="col-3">@CurrentAthlete.Age</div>
+        <div class="col-2">@CurrentAthlete.DisciplineName</div>
+        <div class="col-1">@CurrentAthlete.UserLogin</div>
+    </div>
+}
+@code {
+    private Athlete _currentAthlete = new Athlete();
+
+    [Parameter]
+    public Athlete CurrentAthlete
+    {
+        get => _currentAthlete;
+        set
+        {
+            if (value is not null && !value.Equals(_currentAthlete))
+            {
+                _currentAthlete = value;
+            }
+        }
+    }
+
+    [Parameter]
+    public EventCallback DeleteAthlete { get; set; }
+
+    private string ViewLink => $"View/{CurrentAthlete?.Id}";
+
+    private string Name => Filters.ShowFirstNameFirst ?
+    $"{CurrentAthlete?.FullName}" : $"{CurrentAthlete?.FullName}";
+}

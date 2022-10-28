@@ -1,0 +1,164 @@
+﻿@page "/user/View/{AthleteId:int}"
+
+@using BlazorServerDbContextExample.Data
+@using BlazorServerDbContextExample.Grid
+@using Microsoft.EntityFrameworkCore
+@using SportsAgents.Models
+@using SportsAgentsService
+
+@inject IDbContextFactory<SportsAgentsContext> DbFactory
+@inject EditSuccess EditSuccessState
+
+@if (NotFound && !Loading)
+{
+    <div class="alert alert-warning">A athlete with that id doesn't exist.</div>
+}
+else
+{
+    @if (Athlete is null || Loading)
+    {
+        <div class="alert alert-info">Loading...</div>
+    }
+    else
+    {
+        <h1>Athlete informations</h1>
+        <br />
+        @if (EditSuccess)
+        {
+            <div class="alert alert-success">Successfully updated the athlete.</div>
+        }
+        <hr />
+        <h3>Full name: @Athlete.FullName</h3>
+        <h3>Age: @Athlete.Age</h3>
+        <h3>Discipline: @Athlete.DisciplineName</h3>
+        <h3>User: @Athlete.UserLogin</h3>
+        <br />
+        @if (!Deleted)
+        {
+            <a class="btn btn-primary" href="edit/@Athlete.Id" title="Edit">Edit</a><span>&nbsp;</span>
+            @if (!ShowConfirmation)
+            {
+                <button class="btn btn-danger" @onclick="@(() => { ShowConfirmation = true; EditSuccess = false; })">Delete</button>
+            }
+            else
+            {
+                <br />
+                <br />
+                <DeletePrompt Confirmation="@(async result => await ConfirmAsync(result))" />
+            }
+        }
+        else
+        {
+            <div class="btn btn-danger">This item has been deleted.</div>
+        }
+    }
+}
+
+@code {
+    private bool Loading;
+
+    [Parameter]
+    public int AthleteId { get; set; }
+
+    private int _lastAthleteId;
+
+    [Parameter]
+    public bool EditSuccess { get; set; }
+
+    private Athlete? Athlete { get; set; }
+
+    private bool NotFound = false;
+
+    private bool ShowConfirmation = false;
+
+    private bool Deleted = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_lastAthleteId != AthleteId)
+        {
+            EditSuccess = EditSuccessState.Success;
+            EditSuccessState.Success = false;
+            _lastAthleteId = AthleteId;
+            await LoadAthleteAsync();
+        }
+        await base.OnParametersSetAsync();
+    }
+
+    private async Task ConfirmAsync(bool result)
+    {
+        if (result)
+        {
+            await DeleteAsync();
+        }
+        else
+        {
+            ShowConfirmation = false;
+            EditSuccess = false;
+        }
+    }
+
+    private async Task LoadAthleteAsync()
+    {
+        if (Loading)
+        {
+            return;
+        }
+
+        NotFound = false;
+        Athlete = null;
+        Loading = true;
+
+        using var context = DbFactory.CreateDbContext();
+
+        if (context.Athletes is not null)
+        {
+            Athlete = await context.Athletes
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    c => c.Id == AthleteId);
+
+            if (Athlete is null)
+            {
+                NotFound = true;
+            }
+        }
+
+        Loading = false;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (Loading)
+        {
+            return;
+        }
+
+        Loading = true;
+        using var context = DbFactory?.CreateDbContext();
+
+        if (context?.Athletes is not null)
+        {
+            var athlete = await context.Athletes
+                .SingleOrDefaultAsync(c => c.Id == AthleteId);
+
+            if (athlete is not null)
+            {
+                context.Athletes?.Remove(athlete);
+                await context.SaveChangesAsync();
+                Loading = false;
+                Deleted = true;
+            }
+            else
+            {
+                Loading = false;
+                await LoadAthleteAsync();
+            }
+        }
+        else
+        {
+            Loading = false;
+            await LoadAthleteAsync();
+        }
+    }
+}

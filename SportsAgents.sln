@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32328.378
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SportsAgents", "SportsAgents\SportsAgents.csproj", "{7B01BAF1-404C-4782-9324-34522275DB9E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlazorServerSportsAgents", "BlazorServerSportsAgents\BlazorServerSportsAgents.csproj", "{C0E68EBA-CF10-49EE-ABA9-C5262CD004E2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7B01BAF1-404C-4782-9324-34522275DB9E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B01BAF1-404C-4782-9324-34522275DB9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B01BAF1-404C-4782-9324-34522275DB9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B01BAF1-404C-4782-9324-34522275DB9E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C0E68EBA-CF10-49EE-ABA9-C5262CD004E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C0E68EBA-CF10-49EE-ABA9-C5262CD004E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C0E68EBA-CF10-49EE-ABA9-C5262CD004E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C0E68EBA-CF10-49EE-ABA9-C5262CD004E2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6420865C-A4FE-470D-A0ED-236F21BDE1E5}
+	EndGlobalSection
+EndGlobal

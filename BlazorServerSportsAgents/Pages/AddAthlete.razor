@@ -1,0 +1,90 @@
+﻿@page "/addAthlete"
+
+@using BlazorServerDbContextExample.Grid
+@using Microsoft.EntityFrameworkCore
+@using SportsAgents.Models
+@using SportsAgentsService
+
+@inject IDbContextFactory<SportsAgentsContext> DbFactory
+@inject NavigationManager Navigation
+
+@if (Athlete is not null)
+{
+    <AddAthleteForm Busy="@Busy" 
+                   Athlete="@Athlete" 
+                   IsAdd="true"
+                   CancelRequest="Cancel"
+                   ValidationResult="@(async (success) => await ValidationResultAsync(success))" />
+}
+@if (Success)
+{
+    <br />
+    <div class="alert alert-success">The athlete was successfully added.</div>
+}
+@if (Error)
+{
+    <br />
+    <div class="alert alert-danger">Failed to add the athlete (@ErrorMessage).</div>
+}
+
+@code {
+    private Athlete? Athlete { get; set; }
+
+    private bool Busy;
+
+    private bool Success;
+
+    private bool Error;
+
+    private string ErrorMessage = string.Empty;
+
+    protected override Task OnInitializedAsync()
+    {
+        Athlete = new();
+        return base.OnInitializedAsync();
+    }
+
+    private async Task ValidationResultAsync(bool success)
+    {
+        if (Busy)
+        {
+            return;
+        }
+
+        if (!success)
+        {
+            Success = false;
+            Error = false;
+            return;
+        }
+
+        Busy = true;
+        using var context = DbFactory.CreateDbContext();
+
+        if (Athlete is not null)
+        {
+            context.Athletes?.Add(Athlete);
+        }
+
+        try
+        {
+            await context.SaveChangesAsync();
+            Success = true;
+            Error = false;
+            Athlete = new();
+            Busy = false;
+        }
+        catch (Exception ex)
+        {
+            Success = false;
+            Error = true;
+            ErrorMessage = ex.Message;
+            Busy = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo($"/");
+    }
+}

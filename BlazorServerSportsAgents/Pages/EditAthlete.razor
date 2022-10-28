@@ -1,0 +1,152 @@
+﻿@page "/edit/{AthleteId:int}"
+
+@using BlazorServerDbContextExample.Data
+@using BlazorServerDbContextExample.Grid
+@using Microsoft.EntityFrameworkCore;
+@using SportsAgents.Models
+@using SportsAgentsService
+@implements IDisposable
+
+@inject IDbContextFactory<SportsAgentsContext> DbFactory
+@inject NavigationManager Navigation
+@inject EditSuccess EditSuccessState
+
+@if (Athlete is null && !Busy)
+{
+    <p>Could not find athlete with id @AthleteId.</p>
+}
+else
+{
+    <AthleteForm Busy="@Busy" Athlete="@Athlete"
+                 DbAthlete="@DbAthlete"
+                 IsAdd="false"
+                 CancelRequest="Cancel"
+                 ValidationResult="@(async (success) => await ValidationResultAsync(success))" />
+}
+@if (ConcurrencyError)
+{
+    <br />
+    <div class="alert alert-danger">
+        <p>
+            The athlete details have changed since it was last loaded. The updated fields are highlighted in the form.
+            Please choose an option:
+        </p>
+        <p><b>Cancel</b> to lose your changes and keep the database version.</p>
+        <p><b>Submit</b> to force an update with your version.</p>
+    </div>
+}
+@if (Error)
+{
+    <br />
+    <div class="alert alert-danger">Failed to update the athlete (@ErrorMessage).</div>
+}
+
+@code {
+    [Parameter]
+    public int AthleteId { get; set; }
+
+    private SportsAgentsContext? Context { get; set; }
+
+    private Athlete Athlete { get; set; } = new Athlete();
+
+    private Athlete DbAthlete { get; set; } = new Athlete();
+
+    private bool Busy;
+
+    private bool Error;
+
+    private bool ConcurrencyError;
+
+    private string ErrorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Busy = true;
+
+        try
+        {
+            Context = DbFactory.CreateDbContext();
+
+            if (Context is not null && Context.Athletes is not null)
+            {
+                var athlete = await Context.Athletes.SingleOrDefaultAsync(c => c.Id == AthleteId);
+
+                if (athlete is not null)
+                {
+                    Athlete = athlete;
+                }
+            }
+        }
+        finally
+        {
+            Busy = false;
+        }
+
+        await base.OnInitializedAsync();
+    }
+
+    private async Task ValidationResultAsync(bool success)
+    {
+        if (Busy)
+        {
+            return;
+        }
+
+        if (!success)
+        {
+            Error = false;
+            ConcurrencyError = false;
+            return;
+        }
+
+        Busy = true;
+        try
+        {
+            if (Context is not null)
+            {
+                await Context.SaveChangesAsync();
+            }
+
+            EditSuccessState.Success = true;
+            Navigation.NavigateTo($"/view/{Athlete.Id}");
+        }
+        catch (DbUpdateConcurrencyException dbex)
+        {
+            EditSuccessState.Success = false;
+
+            ConcurrencyError = true;
+
+            var dbValues = dbex.Entries[0].GetDatabaseValues();
+
+            if (dbValues is null)
+            {
+                Navigation.NavigateTo($"/view/{Athlete.Id}");
+                return;
+            }
+
+            DbAthlete = (Athlete)dbValues.ToObject();
+
+            dbex.Entries[0].OriginalValues.SetValues(dbValues);
+            Error = false;
+            Busy = false;
+        }
+        catch (Exception ex)
+        {
+            EditSuccessState.Success = false;
+            Error = true;
+            ErrorMessage = ex.Message;
+            Busy = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Busy = true;
+        Navigation.NavigateTo($"/");
+    }
+
+    public void Dispose()
+    {
+        Context?.Dispose();
+    }
+}

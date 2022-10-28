@@ -1,0 +1,82 @@
+﻿@page "/"
+
+@using BlazorServerDbContextExample.Grid
+@using Microsoft.EntityFrameworkCore
+@using SportsAgents.Models
+@using SportsAgentsService
+@inject IHttpClientFactory IHttpClientFactory
+@inject IAthleteFilters Filters
+@inject IDbContextFactory<SportsAgentsContext> DbFactory
+@inject NavigationManager Navigation
+
+<h1>Athletes</h1>
+<GridWrapper @ref="Wrapper">
+    <div class="container-fluid athletes-grid">
+        <div class="row athlete-header">
+            <div class="col-2">&nbsp; Full name
+            </div>
+            <div class="col-3">&nbsp;Age
+            </div>
+            <div class="col-2">&nbsp;Discipline name
+            </div>
+            <div class="col-1">&nbsp;User login
+            </div>
+        </div>
+        @if (Filters.Loading || athletes is null)
+        {
+            <div class="row">
+                <div class="col-12 alert alert-info">
+                    Loading...
+                </div>
+            </div>
+        }
+        @if (athletes is not null && athletes.Count == 0)
+        {
+            <div class="row">
+                <div class="col-12 alert alert-warning">
+                    No athletes found.
+                </div>
+            </div>
+        }
+        @if (athletes is not null)
+        {
+            @foreach (SportsAgentsService.Athlete athlete in athletes)
+            {
+                <AthleteRow @key=athlete CurrentAthlete="@athlete" />
+            }
+        }
+    </div>
+</GridWrapper>
+
+
+@code{
+    private GridWrapper Wrapper { get; set; } = new GridWrapper();
+
+    private ICollection<SportsAgentsService.Athlete>? athletes { get; set; }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await ReloadAsync();
+        await base.OnParametersSetAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        SportsAgentsClient sportsAgentsClient = new SportsAgentsClient("https://localhost:7047/", IHttpClientFactory.CreateClient());
+
+        athletes = new List<SportsAgentsService.Athlete>();
+
+        using var context = DbFactory.CreateDbContext();
+        var query = context.Athletes?.AsQueryable();
+
+        if (query is not null)
+        {
+            athletes = await sportsAgentsClient.GetAthletesAsync();
+        }
+    }
+}

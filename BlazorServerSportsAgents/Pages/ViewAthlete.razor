@@ -1,0 +1,82 @@
+﻿@page "/View/{AthleteId:int}"
+
+@using BlazorServerDbContextExample.Data
+@using BlazorServerDbContextExample.Grid
+@using Microsoft.EntityFrameworkCore
+@using SportsAgents.Models
+@using SportsAgentsService
+
+@inject IDbContextFactory<SportsAgentsContext> DbFactory
+
+@if (NotFound && !Loading)
+{
+    <div class="alert alert-warning">A athlete with that id doesn't exist.</div>
+}
+else
+{
+    @if (Athlete is null || Loading)
+    {
+        <div class="alert alert-info">Loading...</div>
+    }
+    else
+    {
+        <h1>Athlete informations</h1>
+        <hr />
+        <h3>Full name: @Athlete.FullName</h3>
+        <h3>Age: @Athlete.Age</h3>
+        <h3>Discipline: @Athlete.DisciplineName</h3>
+        <h3>User: @Athlete.UserLogin</h3>
+    }
+}
+
+@code {
+    private bool Loading;
+
+    [Parameter]
+    public int AthleteId { get; set; }
+
+    private int _lastAthleteId;
+
+    private Athlete? Athlete { get; set; }
+
+    private bool NotFound = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_lastAthleteId != AthleteId)
+        {
+            _lastAthleteId = AthleteId;
+            await LoadAthleteAsync();
+        }
+        await base.OnParametersSetAsync();
+    }
+
+    private async Task LoadAthleteAsync()
+    {
+        if (Loading)
+        {
+            return;
+        }
+
+        NotFound = false;
+        Athlete = null;
+        Loading = true;
+
+        using var context = DbFactory.CreateDbContext();
+
+        if (context.Athletes is not null)
+        {
+            Athlete = await context.Athletes
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    c => c.Id == AthleteId);
+
+            if (Athlete is null)
+            {
+                NotFound = true;
+            }
+        }
+        Loading = false;
+    }
+
+}

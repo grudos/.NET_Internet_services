@@ -1,0 +1,108 @@
+﻿@using BlazorServerDbContextExample.Grid
+@using BlazorServerSportsAgents.Pages
+@using SportsAgentsService
+@inject IAthleteFilters Filters
+
+@if (CurrentAthlete is not null)
+{
+    <div class="row athlete-detail">
+        <div class="col-1 text-right">
+            <a title="Edit" href="edit/@CurrentAthlete.Id">
+                &nbsp;📝&nbsp;
+            </a>
+            @if (CanDelete)
+            {
+                <span @onclick="DeleteRequestAsync"
+                      title="Delete" class="clickable red">❌</span>
+            }
+            else
+            {
+                <span>&nbsp;</span>
+            }
+            &nbsp;
+        </div>
+        <div class="col-2">
+            <a href="@ViewLink" alt="View Details"
+               title="View Details">
+                @Name
+            </a>
+        </div>
+        @if (!DeleteConfirmation)
+        {
+            <div class="col-3">@CurrentAthlete.Age</div>
+            <div class="col-2">@CurrentAthlete.DisciplineName</div>
+            <div class="col-1">@CurrentAthlete.UserLogin</div>
+        }
+        else
+        {
+            <div class="col-9">
+                <DeletePrompt Confirmation="ConfirmAsync" />
+            </div>
+        }
+    </div>
+}
+@code {
+    private Athlete _currentAthlete = new Athlete();
+
+    [Parameter]
+    public Athlete CurrentAthlete
+    {
+        get => _currentAthlete;
+        set
+        {
+            if (value is not null && !value.Equals(_currentAthlete))
+            {
+                _currentAthlete = value;
+                DeleteConfirmation = false;
+            }
+        }
+    }
+
+    [Parameter]
+    public EventCallback DeleteAthlete { get; set; }
+
+    [CascadingParameter]
+    public GridWrapper? Wrapper { get; set; }
+
+    private bool CanDelete => !DeleteConfirmation &&
+    (Wrapper?.DeleteRequestId == 0 ||
+    Wrapper?.DeleteRequestId == CurrentAthlete?.Id);
+
+    private string ViewLink => $"View/{CurrentAthlete?.Id}";
+
+    private bool DeleteConfirmation { get; set; }
+
+    private async Task ConfirmAsync(bool confirmed)
+    {
+        if (confirmed)
+        {
+            await DeleteAsync();
+        }
+        else
+        {
+            DeleteConfirmation = false;
+
+            if (Wrapper is not null)
+            {
+                await Wrapper.DeleteRequested.InvokeAsync(0);
+            }
+        }
+    }
+
+    private async Task DeleteRequestAsync()
+    {
+        if (Wrapper?.DeleteRequestId == 0)
+        {
+            DeleteConfirmation = true;
+            await Wrapper.DeleteRequested.InvokeAsync(CurrentAthlete.Id);
+        }
+    }
+
+    private Task DeleteAsync()
+    {
+        return DeleteAthlete.InvokeAsync(this);
+    }
+
+    private string Name => Filters.ShowFirstNameFirst ?
+    $"{CurrentAthlete?.FullName}" : $"{CurrentAthlete?.FullName}";
+}

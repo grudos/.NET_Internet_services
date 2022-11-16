@@ -1,13 +1,16 @@
-﻿@page "/user/View/{AthleteId:int}"
+﻿@page "/users/athletes/view/{AthleteId:int}"
 
-@using BlazorServerDbContextExample.Data
 @using BlazorServerDbContextExample.Grid
+@using BlazorServerSportsAgents.Data
+@using BlazorServerSportsAgents.Helpers
 @using Microsoft.EntityFrameworkCore
 @using SportsAgents.Models
-@using SportsAgentsService
 
 @inject IDbContextFactory<SportsAgentsContext> DbFactory
 @inject EditSuccess EditSuccessState
+@inject IJSRuntime jsr
+@inject IHttpClientFactory IHttpClientFactory
+@inject HttpClient Http
 
 @if (NotFound && !Loading)
 {
@@ -35,7 +38,7 @@ else
         <br />
         @if (!Deleted)
         {
-            <a class="btn btn-primary" href="edit/@Athlete.Id" title="Edit">Edit</a><span>&nbsp;</span>
+            <a class="btn btn-primary" href="/users/athletes/edit/@Athlete.Id" title="Edit">Edit</a><span>&nbsp;</span>
             @if (!ShowConfirmation)
             {
                 <button class="btn btn-danger" @onclick="@(() => { ShowConfirmation = true; EditSuccess = false; })">Delete</button>
@@ -73,6 +76,15 @@ else
 
     private bool Deleted = false;
 
+    [Parameter]
+    public string UserLogin { get; set; }
+
+    string userdata;
+
+    private string[] dataArray;
+
+
+
     protected override async Task OnParametersSetAsync()
     {
         if (_lastAthleteId != AthleteId)
@@ -109,14 +121,40 @@ else
         Athlete = null;
         Loading = true;
 
+
         using var context = DbFactory.CreateDbContext();
 
         if (context.Athletes is not null)
         {
-            Athlete = await context.Athletes
-                .AsNoTracking()
-                .SingleOrDefaultAsync(
-                    c => c.Id == AthleteId);
+            if (dataArray == null)
+            {
+                dataArray = await AuthHelper.GetJWT(jsr);
+                if (dataArray != null)
+                {
+                    UserLogin = dataArray[0];
+                    userdata = dataArray[1]; 
+                }
+            }
+
+            try
+            {
+                var requestMsg = new HttpRequestMessage(HttpMethod.Get, $"https://localhost:7047/api/Users/{UserLogin}/Athletes/{AthleteId}");
+                requestMsg.Headers.Add("Authorization", "Bearer " + userdata);
+                var response = await Http.SendAsync(requestMsg);
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+				    await jsr.InvokeVoidAsync("localStorage.removeItem", "user").ConfigureAwait(false);
+				    userdata = null;
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                {
+                    Athlete = null;
+                }
+                else if (response.IsSuccessStatusCode)
+				    Athlete = await response.Content.ReadFromJsonAsync<Athlete>();
+		    }
+		    catch (Exception ex) {
+		    }
 
             if (Athlete is null)
             {
@@ -144,8 +182,28 @@ else
 
             if (athlete is not null)
             {
-                context.Athletes?.Remove(athlete);
-                await context.SaveChangesAsync();
+                string[] dataArray;
+                dataArray = await AuthHelper.GetJWT(jsr);
+                UserLogin = dataArray[0];
+                userdata = dataArray[1];
+                try
+                {
+                    var requestMsg = new HttpRequestMessage(HttpMethod.Delete, $"https://localhost:7047/api/Users/{UserLogin}/Athletes/{AthleteId}");
+                    requestMsg.Headers.Add("Authorization", "Bearer " + userdata);
+
+                    var response = await Http.SendAsync(requestMsg);
+			        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+			        {
+				        await jsr.InvokeVoidAsync("localStorage.removeItem", "user").ConfigureAwait(false);
+				        userdata = null;
+			        }
+			        else if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+				        athlete = null;
+
+		        }
+		        catch (Exception ex) {
+		        }
+
                 Loading = false;
                 Deleted = true;
             }

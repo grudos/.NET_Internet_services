@@ -1,5 +1,5 @@
 ﻿@using Microsoft.AspNetCore.Components.Forms;
-@using SportsAgentsService;
+@using SportsAgents.Models
 
 <h1>@Mode Athlete</h1>
 <hr />
@@ -10,7 +10,7 @@
               OnValidSubmit="(async () => await HandleSubmitAsync(true))">
         <DataAnnotationsValidator />
         <ValidationSummary />
-        <h3>Edit Athlete informations</h3>
+        <h3>Add athlete informations</h3>
         <p>
             <label>
                 Full name:
@@ -27,12 +27,6 @@
             <label>
                 Discipline name:
                 <InputText @bind-Value="Athlete.DisciplineName" />
-            </label>
-        </p>
-        <p>
-            <label>
-                User login:
-                <InputText @bind-Value="Athlete.UserLogin" />
             </label>
         </p>
         <br />

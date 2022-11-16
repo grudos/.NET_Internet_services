@@ -1,0 +1,27 @@
+﻿@page "/Logout"
+@using BlazorServerSportsAgents.Helpers
+@inject IJSRuntime jsr
+@inject NavigationManager nav
+
+@code {
+	[Parameter]
+	public string UserLogin { get; set; }
+	string userdata;
+
+	protected override async Task OnInitializedAsync()
+	{
+        string[] dataArray;
+        dataArray = await AuthHelper.GetJWT(jsr);
+        UserLogin = dataArray[0];
+        userdata = dataArray[1];
+
+		try
+		{
+			await base.OnInitializedAsync();
+			await jsr.InvokeVoidAsync("localStorage.removeItem", "user").ConfigureAwait(false);
+			nav.NavigateTo("/");
+		}
+		catch (JSDisconnectedException ex) {
+		}
+	}
+}

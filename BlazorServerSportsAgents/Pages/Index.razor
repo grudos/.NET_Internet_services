@@ -3,10 +3,9 @@
 @using BlazorServerDbContextExample.Grid
 @using Microsoft.EntityFrameworkCore
 @using SportsAgents.Models
-@using SportsAgentsService
 @inject IHttpClientFactory IHttpClientFactory
+@inject HttpClient Http
 @inject IAthleteFilters Filters
-@inject IDbContextFactory<SportsAgentsContext> DbFactory
 @inject NavigationManager Navigation
 
 <h1>Athletes</h1>
@@ -40,7 +39,7 @@
         }
         @if (athletes is not null)
         {
-            @foreach (SportsAgentsService.Athlete athlete in athletes)
+            @foreach (Athlete athlete in athletes)
             {
                 <AthleteRow @key=athlete CurrentAthlete="@athlete" />
             }
@@ -52,7 +51,7 @@
 @code{
     private GridWrapper Wrapper { get; set; } = new GridWrapper();
 
-    private ICollection<SportsAgentsService.Athlete>? athletes { get; set; }
+    private ICollection<Athlete>? athletes { get; set; }
 
     protected override void OnAfterRender(bool firstRender)
     {
@@ -67,16 +66,18 @@
 
     private async Task ReloadAsync()
     {
-        SportsAgentsClient sportsAgentsClient = new SportsAgentsClient("https://localhost:7047/", IHttpClientFactory.CreateClient());
+        athletes = new List<Athlete>();
 
-        athletes = new List<SportsAgentsService.Athlete>();
-
-        using var context = DbFactory.CreateDbContext();
-        var query = context.Athletes?.AsQueryable();
-
-        if (query is not null)
-        {
-            athletes = await sportsAgentsClient.GetAthletesAsync();
-        }
+        try
+		{
+			var requestMsg = new HttpRequestMessage(HttpMethod.Get, $"https://localhost:7047/api/Athletes");
+			var response = await Http.SendAsync(requestMsg);
+			if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+				athletes = null;
+			else if (response.IsSuccessStatusCode)
+				athletes = await response.Content.ReadFromJsonAsync<List<Athlete>>();
+		}
+		catch (Exception ex) {
+		}
     }
 }

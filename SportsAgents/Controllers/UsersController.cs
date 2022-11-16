@@ -1,17 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using SportsAgents.Models;
 
 namespace SportsAgents.Controllers
@@ -22,19 +11,24 @@ namespace SportsAgents.Controllers
     {
         private readonly SportsAgentsContext _context;
 
+
         public UsersController(SportsAgentsContext context)
         {
             _context = context;
         }
 
-        [HttpGet("GetAllUsers")]
+
+        [Authorize]
+        [HttpGet("")]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
             return await _context.Users.ToListAsync();
         }
 
-        [HttpGet("GetUserByLogin/{login}")]
-        public ActionResult<User> GetUser(string login)
+
+        [Authorize]
+        [HttpGet("{login}")]
+        public ActionResult<User> GetUser([FromRoute(Name = "login")] string login)
         {
             var user = _context.Users
                 .Include(u => u.Athletes)
@@ -48,8 +42,10 @@ namespace SportsAgents.Controllers
             return user;
         }
 
-        [HttpGet("GetUserAthletesByLogin/{login}")]
-        public ActionResult<IEnumerable<Athlete>> GetUserAthletes(string login)
+
+        [Authorize]
+        [HttpGet("{login}/Athletes")]
+        public ActionResult<IEnumerable<Athlete>> GetUserAthletes([FromRoute(Name = "login")] string login)
         {
             var athletes = _context.Users
                 .Include(u => u.Athletes)
@@ -64,29 +60,53 @@ namespace SportsAgents.Controllers
             return Ok(athletes);
         }
 
-        [HttpPost("PostUser")]
-        public async Task<ActionResult<User>> PostUser(User user)
+
+        [Authorize]
+        [HttpGet("{login}/Athletes/{id}")]
+        public ActionResult<Athlete> GetUserAthlete(int id)
         {
-            _context.Users.Add(user);
-            try
+            var athlete = _context.Athletes
+                .Where(a => a.Id == id)
+                .FirstOrDefault();
+
+            if (athlete == null)
             {
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
-            catch (DbUpdateException)
-            {
-                if (UserExists(user.Login))
-                {
-                    return Conflict();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-            return Ok(user);
+
+            return athlete;
         }
 
-        [HttpDelete("DeleteUser/{login}")]
+
+        [Authorize]
+        [HttpPut("{login}/Athletes/{id}")]
+        public async Task<IActionResult> PutUserAthlete([FromRoute(Name = "login")] string login, 
+            [FromRoute(Name = "id")] int id, [FromBody] Athlete athlete)
+        {
+            athlete.Id = id;
+            athlete.UserLogin = login;
+
+            _context.Entry(athlete).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+
+        [Authorize]
+        [HttpPost("{login}/Athletes/")]
+        public async Task<ActionResult<Athlete>> PostUserAthlete([FromRoute(Name = "login")] string login, Athlete athlete)
+        {
+            athlete.UserLogin = login;
+            _context.Athletes.Add(athlete);
+            await _context.SaveChangesAsync();
+
+            return Ok(athlete);
+        }
+
+
+        [Authorize]
+        [HttpDelete("{login}")]
         public async Task<IActionResult> DeleteUser(string login)
         {
             var user = await _context.Users.FindAsync(login);
@@ -101,9 +121,23 @@ namespace SportsAgents.Controllers
             return NoContent();
         }
 
-        private bool UserExists(string login)
+
+        [Authorize]
+        [HttpDelete("{login}/Athletes/{id}")]
+        public async Task<IActionResult> DeleteAthlete(int id)
         {
-            return _context.Users.Any(e => e.Login == login);
+            var athlete = await _context.Athletes.FindAsync(id);
+            if (athlete == null)
+            {
+                return NotFound();
+            }
+
+            _context.Athletes.Remove(athlete);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
         }
+
+
     }
 }

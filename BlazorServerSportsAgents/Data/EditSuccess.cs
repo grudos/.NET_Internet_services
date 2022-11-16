@@ -1,4 +1,4 @@
-﻿namespace BlazorServerDbContextExample.Data
+﻿namespace BlazorServerSportsAgents.Data
 {
     public class EditSuccess
     {

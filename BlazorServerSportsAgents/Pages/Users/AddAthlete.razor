@@ -1,0 +1,135 @@
+﻿@page "/users/athletes/add"
+
+@using BlazorServerDbContextExample.Grid
+@using BlazorServerSportsAgents.Helpers
+@using Microsoft.EntityFrameworkCore
+@using SportsAgents.Models
+@using System.Text
+@using System.Text.Json
+@using System.Net.Http.Headers
+
+@inject NavigationManager Navigation
+@inject IJSRuntime jsr
+@inject HttpClient Http
+@inject IHttpClientFactory IHttpClientFactory
+
+
+@if (athlete is not null)
+{
+    <AddAthleteForm Busy="@Busy" 
+                   Athlete="@athlete"
+                   IsAdd="true"
+                   CancelRequest="Cancel"
+                   ValidationResult="@(async (success) => await ValidationResultAsync(success))" />
+}
+@if (Success)
+{
+    <br />
+    <div class="alert alert-success">The athlete was successfully added.</div>
+}
+@if (Error)
+{
+    <br />
+    <div class="alert alert-danger">You are not logged in. Failed to add the athlete.</div>
+}
+
+@code {
+    private Athlete? athlete { get; set; }
+
+    private bool Busy;
+
+    private bool Success;
+
+    private bool Error;
+
+    [Parameter]
+    public string UserLogin { get; set; } = string.Empty;
+
+    private string userdata;
+
+    private string[] dataArray;
+
+
+
+    protected override Task OnInitializedAsync()
+    {
+        athlete = new();
+        athlete.UserLogin = UserLogin;
+        return base.OnInitializedAsync();
+    }
+
+    private async Task ValidationResultAsync(bool success)
+    {
+        if (Busy)
+        {
+            return;
+        }
+
+        if (!success)
+        {
+            Success = false;
+            Error = false;
+            return;
+        }
+
+        Busy = true;
+
+        if (athlete is not null)
+        {
+            if (dataArray == null)
+            {
+                dataArray = await AuthHelper.GetJWT(jsr);
+                if (dataArray != null)
+                {
+                    UserLogin = dataArray[0];
+                    userdata = dataArray[1]; 
+                }
+            }
+
+            if (!string.IsNullOrEmpty(UserLogin))
+            {
+                try
+                {
+                    var requestMsg = new HttpRequestMessage(HttpMethod.Post, $"https://localhost:7047/api/Users/{UserLogin}/Athletes");
+                    requestMsg.Headers.Add("Authorization", "Bearer " + userdata);
+                    requestMsg.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                    var athleteSerialized = JsonSerializer.Serialize(athlete);
+
+                    requestMsg.Content = new StringContent(athleteSerialized, Encoding.UTF8);
+                    requestMsg.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                    var response = await Http.SendAsync(requestMsg);
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        await jsr.InvokeVoidAsync("localStorage.removeItem", "user").ConfigureAwait(false);
+                        userdata = null;
+                    }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                    {
+                        athlete = null;
+                    }
+                    else if (response.IsSuccessStatusCode)
+                    {
+                        athlete = await response.Content.ReadFromJsonAsync<Athlete>();   
+                    }
+                    Success = true;
+                }
+                catch (Exception ex) {
+                }
+            }
+            else
+            {
+                Success = false;
+                Error = true;
+                athlete = new();
+                Busy = false;
+            }
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo($"/");
+    }
+}

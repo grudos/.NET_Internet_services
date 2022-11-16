@@ -1,12 +1,13 @@
-﻿@page "/View/{AthleteId:int}"
+﻿@page "/athletes/view/{AthleteId:int}"
 
-@using BlazorServerDbContextExample.Data
 @using BlazorServerDbContextExample.Grid
 @using Microsoft.EntityFrameworkCore
 @using SportsAgents.Models
-@using SportsAgentsService
+@using static System.Net.WebRequestMethods
 
-@inject IDbContextFactory<SportsAgentsContext> DbFactory
+@inject IHttpClientFactory IHttpClientFactory
+@inject HttpClient Http
+
 
 @if (NotFound && !Loading)
 {
@@ -62,19 +63,21 @@ else
         Athlete = null;
         Loading = true;
 
-        using var context = DbFactory.CreateDbContext();
+        try
+		{
+			var requestMsg = new HttpRequestMessage(HttpMethod.Get, $"https://localhost:7047/api/Athletes/{AthleteId}");
+			var response = await Http.SendAsync(requestMsg);
+			if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+				Athlete = null;
+			else if (response.IsSuccessStatusCode)
+				Athlete = await response.Content.ReadFromJsonAsync<Athlete>();
+		}
+		catch (Exception ex) {
+		}
 
-        if (context.Athletes is not null)
+        if (Athlete is null)
         {
-            Athlete = await context.Athletes
-                .AsNoTracking()
-                .SingleOrDefaultAsync(
-                    c => c.Id == AthleteId);
-
-            if (Athlete is null)
-            {
-                NotFound = true;
-            }
+            NotFound = true;
         }
         Loading = false;
     }

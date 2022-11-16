@@ -1,13 +1,13 @@
 ﻿@using BlazorServerDbContextExample.Grid
 @using BlazorServerSportsAgents.Pages
-@using SportsAgentsService
+@using SportsAgents.Models
 @inject IAthleteFilters Filters
 
 @if (CurrentAthlete is not null)
 {
     <div class="row athlete-detail">
         <div class="col-1 text-right">
-            <a title="Edit" href="edit/@CurrentAthlete.Id">
+            <a title="Edit" href="/users/athletes/edit/@CurrentAthlete.Id">
                 &nbsp;📝&nbsp;
             </a>
             @if (CanDelete)
@@ -68,7 +68,7 @@
     (Wrapper?.DeleteRequestId == 0 ||
     Wrapper?.DeleteRequestId == CurrentAthlete?.Id);
 
-    private string ViewLink => $"View/{CurrentAthlete?.Id}";
+    private string ViewLink => $"/users/athletes/view/{CurrentAthlete?.Id}";
 
     private bool DeleteConfirmation { get; set; }
 

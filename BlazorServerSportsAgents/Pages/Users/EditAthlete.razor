@@ -1,0 +1,154 @@
+﻿@page "/users/athletes/edit/{AthleteId:int}"
+
+@using BlazorServerDbContextExample.Grid
+@using BlazorServerSportsAgents.Data
+@using BlazorServerSportsAgents.Helpers
+@using Microsoft.EntityFrameworkCore;
+@using SportsAgents.Models
+@using System.Text.Json
+@using System.Net.Http.Headers
+@using System.Text
+@implements IDisposable
+
+@inject NavigationManager Navigation
+@inject EditSuccess EditSuccessState
+@inject IJSRuntime jsr
+@inject HttpClient Http
+
+
+@if (Athlete is null && !Busy)
+{
+    <p>Could not find athlete with id @AthleteId.</p>
+}
+else
+{
+    <AthleteForm Busy="@Busy" 
+                 Athlete="@Athlete"
+                 IsAdd="false"
+                 CancelRequest="Cancel"
+                 ValidationResult="@(async (success) => await ValidationResultAsync(success))" />
+}
+@if (ConcurrencyError)
+{
+    <br />
+    <div class="alert alert-danger">
+        <p>
+            The athlete details have changed since it was last loaded. The updated fields are highlighted in the form.
+            Please choose an option:
+        </p>
+        <p><b>Cancel</b> to lose your changes and keep the database version.</p>
+        <p><b>Submit</b> to force an update with your version.</p>
+    </div>
+}
+@if (Error)
+{
+    <br />
+    <div class="alert alert-danger">Failed to update the athlete.</div>
+}
+
+@code {
+    [Parameter]
+    public int AthleteId { get; set; }
+
+    private SportsAgentsContext? Context { get; set; }
+
+    private Athlete Athlete { get; set; } = new Athlete();
+
+    private bool Busy;
+
+    private bool Error;
+
+    private bool ConcurrencyError;
+
+    [Parameter]
+    public string UserLogin { get; set; }
+
+    string userdata;
+
+    private string[] dataArray;
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        Busy = false;
+        await base.OnInitializedAsync();
+    }
+
+    private async Task ValidationResultAsync(bool success)
+    {
+        if (Busy)
+        {
+            return;
+        }
+
+        if (!success)
+        {
+            Error = false;
+            ConcurrencyError = false;
+            return;
+        }
+
+        Busy = true;
+        try
+        {
+            if (dataArray == null)
+            {
+                dataArray = await AuthHelper.GetJWT(jsr);
+                if (dataArray != null)
+                {
+                    UserLogin = dataArray[0];
+                    userdata = dataArray[1]; 
+                }
+            }
+
+            try
+            {
+                var requestMsg = new HttpRequestMessage(HttpMethod.Put, $"https://localhost:7047/api/Users/{UserLogin}/Athletes/{AthleteId}");
+                requestMsg.Headers.Add("Authorization", "Bearer " + userdata);
+                requestMsg.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                Athlete.Id = AthleteId;
+                Athlete.UserLogin = UserLogin;
+
+                var athleteSerialized = JsonSerializer.Serialize(Athlete);
+
+                requestMsg.Content = new StringContent(athleteSerialized, Encoding.UTF8);
+                requestMsg.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+                var response = await Http.SendAsync(requestMsg);
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+				    await jsr.InvokeVoidAsync("localStorage.removeItem", "user").ConfigureAwait(false);
+				    userdata = null;
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                {
+				    Athlete = await response.Content.ReadFromJsonAsync<Athlete>();
+                }
+            }
+            catch (Exception ex) {
+            }
+
+            EditSuccessState.Success = true;
+            Navigation.NavigateTo($"/users/athletes/view/{Athlete.Id}");
+        }
+        catch (Exception ex)
+        {
+            EditSuccessState.Success = false;
+            Error = true;
+            Busy = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Busy = true;
+        Navigation.NavigateTo($"/users/user/athletes");
+    }
+
+    public void Dispose()
+    {
+        Context?.Dispose();
+    }
+}

@@ -1,0 +1,195 @@
+﻿@page "/users/user/athletes"
+
+@using BlazorServerDbContextExample.Grid
+@using BlazorServerSportsAgents.Helpers
+@using Microsoft.EntityFrameworkCore
+@using SportsAgents.Models
+
+@inject IHttpClientFactory IHttpClientFactory
+@inject IAthleteFilters Filters
+@inject NavigationManager Navigation
+@inject IJSRuntime jsr
+@inject HttpClient Http
+
+
+<h1>Athletes</h1>
+<GridWrapper @ref="Wrapper"
+             FilterChanged="ReloadAsync"
+             DeleteRequested="id => Wrapper.DeleteRequestId = id">
+    <div class="container-fluid athletes-grid">
+        <div class="row">&nbsp;</div>
+        <div class="row">&nbsp;</div>
+        <div class="row athlete-header">
+            <div class="col-1">&nbsp;</div>
+            <div class="col-2">&nbsp; Full name
+            </div>
+            <div class="col-3">&nbsp;Age
+            </div>
+            <div class="col-2">&nbsp;Discipline name
+            </div>
+            <div class="col-1">&nbsp;User login
+            </div>
+        </div>
+        @if (Filters.Loading || athletes is null)
+        {
+            <div class="row">
+                <div class="col-12 alert alert-warning">
+                    You need to login to your account.
+                </div>
+            </div>
+        }
+        @if (athletes is not null && athletes.Count == 0)
+        {
+            <div class="row">
+                <div class="col-12 alert alert-warning">
+                    No athletes found.
+                </div>
+            </div>
+        }
+        @if (athletes is not null)
+        {
+            @foreach (Athlete athlete in athletes)
+            {
+                <UserAthleteRow @key=athlete CurrentAthlete="@athlete"
+                    DeleteAthlete="DeleteAthleteAsync" />
+            }
+        }
+    </div>
+</GridWrapper>
+
+
+@code{
+    [Parameter]
+    public string UserLogin { get; set; }
+
+    private GridWrapper Wrapper { get; set; } = new GridWrapper();
+
+    private ICollection<Athlete>? athletes { get; set; }
+
+    private string IsDisabled(bool condition) =>
+        !Filters.Loading && condition ? "" : "disabled";
+
+    private string userdata;
+
+    private string[] dataArray;
+
+    private HttpResponseMessage answer;
+
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+    }
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await ReloadAsync();
+        await base.OnParametersSetAsync();
+    }
+
+    private async Task DeleteAthleteAsync()
+    {
+        Filters.Loading = true;
+        Athlete athlete = null;
+
+        if (Wrapper is not null)
+        {
+            if (dataArray == null)
+            {
+                dataArray = await AuthHelper.GetJWT(jsr);
+                if (dataArray != null)
+                {
+                    UserLogin = dataArray[0];
+                    userdata = dataArray[1]; 
+                }
+            }
+
+            try
+            {
+                var requestMsg = new HttpRequestMessage(HttpMethod.Get, $"https://localhost:7047/api/Users/{UserLogin}/Athletes/{Wrapper.DeleteRequestId}");
+                requestMsg.Headers.Add("Authorization", "Bearer " + userdata);
+                var response = await Http.SendAsync(requestMsg);
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    await jsr.InvokeVoidAsync("localStorage.removeItem", "user").ConfigureAwait(false);
+                    userdata = null;
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                    athlete = null;
+                else if (response.IsSuccessStatusCode)
+                    athlete = await response.Content.ReadFromJsonAsync<Athlete>();
+            }
+            catch (Exception ex) {
+            }
+
+            if (athlete is not null)
+            {
+                try
+                {
+                    var requestMsg = new HttpRequestMessage(HttpMethod.Delete, $"https://localhost:7047/api/Users/{UserLogin}/Athletes/{athlete.Id}");
+                    requestMsg.Headers.Add("Authorization", "Bearer " + userdata);
+                    var response = await Http.SendAsync(requestMsg);
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        await jsr.InvokeVoidAsync("localStorage.removeItem", "user").ConfigureAwait(false);
+                        userdata = null;
+                    }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                    {
+                        athlete = null;
+                    }
+                }
+                catch (Exception ex)
+                {
+                }
+            }
+        }
+
+        Filters.Loading = false;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (Wrapper is not null)
+        {
+            Wrapper.DeleteRequestId = 0;
+        }
+
+        if (dataArray == null)
+        {
+            dataArray = await AuthHelper.GetJWT(jsr);
+            if (dataArray != null)
+            {
+                UserLogin = dataArray[0];
+                userdata = dataArray[1]; 
+            }
+        }
+
+        try
+        {
+            var requestMsg = new HttpRequestMessage(HttpMethod.Get, $"https://localhost:7047/api/Users/{UserLogin}/Athletes");
+            requestMsg.Headers.Add("Authorization", "Bearer " + userdata);
+            var response = await Http.SendAsync(requestMsg);
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                await jsr.InvokeVoidAsync("localStorage.removeItem", "user").ConfigureAwait(false);
+                userdata = null;
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+            {
+                athletes = null;                
+            }
+            else if (response.IsSuccessStatusCode)
+            {
+                athletes = await response.Content.ReadFromJsonAsync<List<Athlete>>();  
+            }
+        }
+        catch (Exception ex) {
+        }
+
+        Filters.Loading = false;
+    }
+
+}

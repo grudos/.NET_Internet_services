@@ -1,6 +1,6 @@
 ﻿@using BlazorServerDbContextExample.Grid
 @using BlazorServerSportsAgents.Pages
-@using SportsAgentsService
+@using SportsAgents.Models
 @inject IAthleteFilters Filters
 
 @if (CurrentAthlete is not null)
@@ -36,7 +36,7 @@
     [Parameter]
     public EventCallback DeleteAthlete { get; set; }
 
-    private string ViewLink => $"View/{CurrentAthlete?.Id}";
+    private string ViewLink => $"/athletes/view/{CurrentAthlete?.Id}";
 
     private string Name => Filters.ShowFirstNameFirst ?
     $"{CurrentAthlete?.FullName}" : $"{CurrentAthlete?.FullName}";

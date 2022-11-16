@@ -1,27 +1,39 @@
-using BlazorServerDbContextExample.Data;
 using BlazorServerDbContextExample.Grid;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
-using SportsAgents.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using BlazorServerSportsAgents.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+{
+	options.TokenValidationParameters = new TokenValidationParameters
+	{
+		ValidateAudience = true,
+		ValidAudience = "si.com",
+		ValidateIssuer = true,
+		ValidIssuer = "si.com",
+		ValidateLifetime = true,
+		ValidateIssuerSigningKey = true,
+		IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes("THIS IS THE SECRET KEY"))
+	};
+});
+
+
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddHttpClient();
 
-builder.Services.AddDbContextFactory<SportsAgentsContext>(opt =>
+builder.Services.AddDbContextFactory<SportsAgents.Models.SportsAgentsContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("SportsAgentsDB")));
 
-// filters
+builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
+    .AddEntityFrameworkStores<SportsAgents.Models.SportsAgentsContext>();
+
 builder.Services.AddScoped<IAthleteFilters, GridControls>();
 
-// query adapter (applies filter to athlete request).
-//builder.Services.AddScoped<GridQueryAdapter>();
-
-// TODO: service to communicate success on edit between pages
 builder.Services.AddScoped<EditSuccess>();
 
 var app = builder.Build();
@@ -29,7 +41,6 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -41,5 +52,8 @@ app.UseRouting();
 
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.Run();

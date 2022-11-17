@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace SportsAgents.Models
+﻿namespace SportsAgents.Models
 {
     public partial class User
     {
